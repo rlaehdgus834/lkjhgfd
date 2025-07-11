@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>메모리 게임 - 과일 카드</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f8ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 10px;
+  }
+  #score {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+  }
+  #game-board {
+    display: grid;
+    grid-template-columns: repeat(5, 100px);
+    grid-gap: 15px;
+  }
+  .card {
+    width: 100px;
+    height: 140px;
+    perspective: 600px;
+    cursor: pointer;
+  }
+  .card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+  }
+  .card.flipped .card-inner {
+    transform: rotateY(180deg);
+    cursor: default;
+  }
+  .card-front, .card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    backface-visibility: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.5rem;
+  }
+  .card-front {
+    background: #fff;
+    border: 2px solid #ccc;
+    color: #444;
+  }
+  .card-back {
+    background: #4caf50;
+    color: white;
+    transform: rotateY(180deg);
+  }
+
+
+  /* 폭죽 스타일 */
+  #fireworks {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 9999;
+  }
+</style>
+</head>
+<body>
+
+
+<h1>메모리 게임 - 과일 카드</h1>
+<div id="score">점수: 0</div>
+<div id="game-board"></div>
+<div id="fireworks"></div>
+
+
+<script>
+// 과일 이모지 배열 (5종류, 2장씩)
+const fruits = ['🍎','🍌','🍇','🍉','🍒'];
+const cards = [...fruits, ...fruits]; // 총 10장
+
+
+// 점수 및 상태 변수
+let score = 0;
+let flippedCards = [];
+let matchedCount = 0;
+
+
+const gameBoard = document.getElementById('game-board');
+const scoreDisplay = document.getElementById('score');
+
+
+// 셔플 함수 (Fisher-Yates)
+function shuffle(array) {
+  for(let i=array.length-1; i>0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+
+// 카드 생성
+function createCards() {
+  const shuffled = shuffle(cards.slice());
+  shuffled.forEach((fruit, index) => {
+    const card = document.createElement('div');
+    card.classList.add('card');
+    card.dataset.fruit = fruit;
+    card.dataset.index = index;
+
+
+    card.innerHTML = `
+      <div class="card-inner">
+        <div class="card-front">?</div>
+        <div class="card-back">${fruit}</div>
+      </div>
+    `;
+
+
+    card.addEventListener('click', onCardClick);
+    gameBoard.appendChild(card);
+  });
+}
+
+
+// 카드 클릭 이벤트
+function onCardClick(e) {
+  const card = e.currentTarget;
+
+
+  if (
+    card.classList.contains('flipped') || 
+    flippedCards.length === 2 ||
+    flippedCards.includes(card)
+  ) return;
+
+
+  flipCard(card);
+
+
+  flippedCards.push(card);
+
+
+  if (flippedCards.length === 2) {
+    checkMatch();
+  }
+}
+
+
+function flipCard(card) {
+  card.classList.add('flipped');
+}
+
+
+function unflipCards() {
+  flippedCards.forEach(card => card.classList.remove('flipped'));
+  flippedCards = [];
+}
+
+
+function checkMatch() {
+  const [card1, card2] = flippedCards;
+  if (card1.dataset.fruit === card2.dataset.fruit) {
+    // 맞춘 경우
+    score += 10;
+    scoreDisplay.textContent = `점수: ${score}`;
+    matchedCount += 2;
+    flippedCards = [];
+
+
+    if (matchedCount === cards.length) {
+      // 게임 클리어
+      launchFireworks();
+      setTimeout(() => alert(`축하합니다! 점수는 ${score}점입니다.`), 300);
+    }
+  } else {
+    // 틀린 경우 1초 후 뒤집기
+    setTimeout(() => {
+      unflipCards();
+    }, 1000);
+  }
+}
+
+
+// 폭죽 애니메이션 함수
+function launchFireworks() {
+  const container = document.getElementById('fireworks');
+  const count = 30;
+  for(let i=0; i<count; i++) {
+    const spark = document.createElement('div');
+    spark.style.position = 'absolute';
+    spark.style.width = '6px';
+    spark.style.height = '6px';
+    spark.style.borderRadius = '50%';
+    spark.style.backgroundColor = `hsl(${Math.random()*360}, 100%, 50%)`;
+    spark.style.left = `${Math.random()*window.innerWidth}px`;
+    spark.style.top = `${Math.random()*window.innerHeight}px`;
+    spark.style.opacity = '1';
+    spark.style.pointerEvents = 'none';
+    spark.style.transform = 'translate(0,0)';
+    spark.style.transition = 'transform 1s ease-out, opacity 1s ease-out';
+
+
+    container.appendChild(spark);
+
+
+    // 애니메이션 시작
+    setTimeout(() => {
+      const angle = Math.random()*2*Math.PI;
+      const distance = 150 + Math.random()*150;
+      const x = Math.cos(angle)*distance;
+      const y = Math.sin(angle)*distance;
+
+
+      spark.style.transform = `translate(${x}px, ${y}px)`;
+      spark.style.opacity = '0';
+    }, 10);
+
+
+    // 제거
+    setTimeout(() => {
+      container.removeChild(spark);
+    }, 1100);
+  }
+}
+
+
+createCards();
+</script>
+
+
+</body>
+</html>
